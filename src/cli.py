@@ -1,3 +1,4 @@
+# cli.py
 import argparse
 import sys
 import utils
@@ -63,17 +64,30 @@ def parse_arguments():
 
     args = parser.parse_args()
 
+    # Check for no subcommand
     if args.command is None:
         parser.print_help()
         sys.exit(0)
+
+    # Error handling for mutually exclusive --directory and --file
+    if hasattr(args, "directory") and hasattr(args, "file"):
+        if args.directory and args.file:
+            raise argparse.ArgumentError(
+                None,
+                "Cannot specify both --directory and --file; choose one."
+            )
 
     return args
 
 
 def main():
     """Entry point for ZenithRenamer CLI."""
-    args = parse_arguments()
-    handlers.COMMAND_HANDLERS[args.command](args)
+    try:
+        args = parse_arguments()
+        handlers.COMMAND_HANDLERS[args.command](args)
+    except argparse.ArgumentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
