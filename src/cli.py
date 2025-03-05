@@ -29,32 +29,22 @@ def parse_arguments():
     anime_parser = subparsers.add_parser("anime", help="Standardize anime file names")
     utils.add_common_arguments(anime_parser)
     anime_parser.add_argument(
-        "--online",
-        action="store_true",
-        help="Fetch data from an API"
+        "-s", "--season",
+        type=int,
+        help="Season number to include in the filename (e.g., S01)"
     )
 
     # Subcommand: movie
     movie_parser = subparsers.add_parser("movie", help="Standardize movie file names")
     utils.add_common_arguments(movie_parser)
-    movie_parser.add_argument(
-        "--online",
-        action="store_false",
-        help="Fetch data from an API (default: False)"
-    )
 
     # Subcommand: book
     book_parser = subparsers.add_parser("book", help="Standardize book file names")
     utils.add_common_arguments(book_parser)
-    book_parser.add_argument(
-        "--online",
-        action="store_true",
-        help="Fetch data from an API"
-    )
 
     # Subcommand: std
     std_parser = subparsers.add_parser("std", help="Standardize file names within a directory")
-    utils.add_common_arguments(std_parser)
+    utils.add_common_arguments(std_parser, has_online=False)
     std_parser.add_argument(
         "--creative",
         action="store_true",
@@ -63,17 +53,25 @@ def parse_arguments():
 
     args = parser.parse_args()
 
+    # Check for no subcommand
     if args.command is None:
         parser.print_help()
         sys.exit(0)
+
+    # Validate arguments
+    utils.handle_invalid_arguments(args)
 
     return args
 
 
 def main():
     """Entry point for ZenithRenamer CLI."""
-    args = parse_arguments()
-    handlers.COMMAND_HANDLERS[args.command](args)
+    try:
+        args = parse_arguments()
+        handlers.COMMAND_HANDLERS[args.command](args)
+    except argparse.ArgumentError as e:
+        print(f"Error: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
