@@ -47,7 +47,7 @@ def parse_arguments():
     utils.add_common_arguments(std_parser, has_online=False)
     std_parser.add_argument(
         "--creative",
-        action="store_false",
+        action="store_true",
         help="Generate random names"
     )
 
