@@ -28,6 +28,11 @@ def parse_arguments():
     # Subcommand: anime
     anime_parser = subparsers.add_parser("anime", help="Standardize anime file names")
     utils.add_common_arguments(anime_parser)
+    anime_parser.add_argument(
+        "-s", "--season",
+        type=int,
+        help="Season number to include in the filename (e.g., S01)"
+    )
 
     # Subcommand: movie
     movie_parser = subparsers.add_parser("movie", help="Standardize movie file names")
