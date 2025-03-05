@@ -1,6 +1,10 @@
 import argparse
 import os
 
+VIDEO_EXTENSION = (".mp4", ".mkv", ".ts", ".avi")
+SUBTITLE_EXTENSION = (".srt", "vtt", ".ass", ".sub")
+VALID_EXTENSION = VIDEO_EXTENSION + SUBTITLE_EXTENSION
+
 
 def add_common_arguments(parser, has_online=True):
     """Add shared arguments to a parser."""
@@ -58,3 +62,8 @@ def handle_invalid_arguments(args):
                 None,
                 "The provided path is not a file."
             )
+            
+        
+def list_media_files(path, valid_extensions=VALID_EXTENSION):
+    """List only the relevant files to process"""
+    return [file for file in os.listdir(path) if file.lower().endswith(valid_extensions)]
