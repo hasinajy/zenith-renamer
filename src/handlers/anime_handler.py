@@ -1,6 +1,6 @@
 import os
 import re
-import utils
+from utils import video_utils
 
 EPISODE_PATTERN = r"Watch (.*?) Episode (\d+)"
 
@@ -77,7 +77,7 @@ def handle_anime(args):
     files = []
     if args.directory:
         try:
-            files = utils.list_media_files(args.directory)
+            files = video_utils.list_media_files(args.directory)
             base_dir = args.directory
         except OSError as e:
             print(f"Error accessing directory: {e}")
@@ -91,8 +91,8 @@ def handle_anime(args):
     if args.online and files:
         series_name = _get_series_name(files)
         if series_name:
-            csv_data = utils.fetch_episode_data(series_name, season=args.season)
-            episode_data = utils.process_episode_data(csv_data)
+            csv_data = video_utils.fetch_episode_data(series_name, season=args.season)
+            episode_data = video_utils.process_episode_data(csv_data)
         else:
             print("No valid anime title found in files for online mode.")
 
