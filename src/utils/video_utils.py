@@ -1,8 +1,9 @@
 import csv
 import os
+import utils
+import google.generativeai  as genai
 from io import StringIO
 from dotenv import load_dotenv
-import google.generativeai  as genai
 
 VIDEO_EXTENSION = (".mp4", ".mkv", ".ts", ".avi")
 SUBTITLE_EXTENSION = (".srt", "vtt", ".ass", ".sub")
@@ -55,9 +56,10 @@ def fetch_episode_data(anime_title, season=None):
         if csv_data.startswith("```csv"):
             csv_data = csv_data.replace("```csv", "").replace("```", "").strip()
         
+        csv_data = utils.remove_special_characters(csv_data)    # Clean up invalid filename characters from the CSV data
         return csv_data
     except Exception as e:
-        print(f"Error fetching episode data from Gemini API: {e}", file=os.stderr)
+        print(f"Error fetching episode data from Gemini API: {e}")
         return ""
 
 
