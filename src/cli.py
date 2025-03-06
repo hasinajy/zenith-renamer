@@ -31,6 +31,7 @@ def parse_arguments():
     anime_parser.add_argument(
         "-s", "--season",
         type=int,
+        default=0,
         help="Season number to include in the filename (e.g., S01)"
     )
 
