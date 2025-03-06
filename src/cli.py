@@ -1,6 +1,6 @@
 import argparse
 import sys
-import utils
+from utils import cli_utils
 import handlers
 
 
@@ -27,24 +27,25 @@ def parse_arguments():
 
     # Subcommand: anime
     anime_parser = subparsers.add_parser("anime", help="Standardize anime file names")
-    utils.add_common_arguments(anime_parser)
+    cli_utils.add_common_arguments(anime_parser)
     anime_parser.add_argument(
         "-s", "--season",
         type=int,
+        default=0,
         help="Season number to include in the filename (e.g., S01)"
     )
 
     # Subcommand: movie
     movie_parser = subparsers.add_parser("movie", help="Standardize movie file names")
-    utils.add_common_arguments(movie_parser)
+    cli_utils.add_common_arguments(movie_parser)
 
     # Subcommand: book
     book_parser = subparsers.add_parser("book", help="Standardize book file names")
-    utils.add_common_arguments(book_parser)
+    cli_utils.add_common_arguments(book_parser)
 
     # Subcommand: std
     std_parser = subparsers.add_parser("std", help="Standardize file names within a directory")
-    utils.add_common_arguments(std_parser, has_online=False)
+    cli_utils.add_common_arguments(std_parser, has_online=False)
     std_parser.add_argument(
         "--creative",
         action="store_true",
@@ -59,7 +60,7 @@ def parse_arguments():
         sys.exit(0)
 
     # Validate arguments
-    utils.handle_invalid_arguments(args)
+    cli_utils.handle_invalid_arguments(args)
 
     return args
 
