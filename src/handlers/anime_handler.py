@@ -25,8 +25,12 @@ def _rename_anime_file(old_path, filename, season=None, episode_title=None):
                 new_name = f"{series_name} - {episode_num}{file_ext}"
 
             new_path = os.path.join(os.path.dirname(old_path), new_name)
-            os.rename(old_path, new_path)
-            print(f"Renamed: {filename} -> {new_name}")
+            
+            if old_path != new_path:
+                os.rename(old_path, new_path)
+                print(f"Renamed: {filename} -> {new_name}")
+            else:
+                print("Did not rename: ", new_name)
         else:
             print(f"Skipping: {filename} (no episode pattern found)")
     except OSError as e:
@@ -69,9 +73,10 @@ def handle_anime(args):
     # Fetch episode data if online mode is enabled
     episode_data = None
     if args.online and files:
-        series_name = anime_utils.extract_series_name(files)
+        series_name, season_num = anime_utils.extract_fetch_info(files)
+        season = season_num or args.season
         if series_name:
-            csv_data = video_utils.fetch_episode_data(series_name, season=args.season)
+            csv_data = video_utils.fetch_episode_data(series_name, season=season)
             episode_data = video_utils.process_episode_data(csv_data)
         else:
             print("No valid anime title found in files for online mode.")
