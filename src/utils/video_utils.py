@@ -43,6 +43,7 @@ def fetch_episode_data(anime_title, season=None):
         "Requirements:\n\n"
         "Keep spaces in titles and episode titles but remove invalid filename characters (\\, /, :, *, ?, \", <, >, |).\n"
         "Season data should be empty if the anime has only one season.\n"
+        "Remove all season data from the anime title.\n"
         "Use the official episode titles.\n"
         "Ensure consistency in formatting (e.g., E01, E02, ... E10 instead of E1, E2, ...).\n"
         "Output only the CSV content, without additional text or explanations."
