@@ -49,37 +49,53 @@ def _process_files(files, base_dir, season=0, episode_data=None):
             episode_title = episode_data.get((series_name, season, episode_num))
         
         _rename_anime_file(old_path, filename, season=season, episode_title=episode_title)
+ 
+
+def _get_anime_args(args):
+    return args.directory, args.file, args.season, args.online
 
 
-def handle_anime(args):
-    """Handle anime file processing."""
-    print("Processing anime files ...")
-    print(f"Online mode: {args.online}")
-
-    # Determine files to process
-    base_dir = ""
+def _get_files_to_process(file, directory):
     files = []
-    if args.directory:
+    base_dir = ""
+    
+    if file:
+        files = [os.path.basename(file)]
+        base_dir = os.path.dirname(file)
+    elif directory:
         try:
-            files = video_utils.list_media_files(args.directory)
-            base_dir = args.directory
+            files = video_utils.list_video_files(directory)
+            base_dir = directory
         except OSError as e:
             print(f"Error accessing directory: {e}")
             return
-    elif args.file:
-        files = [os.path.basename(args.file)]
-        base_dir = os.path.dirname(args.file) or ""  # Handle relative paths
+    
+    return files, base_dir
 
-    # Fetch episode data if online mode is enabled
+
+def _get_episode_data(files, online):
     episode_data = None
-    if args.online and files:
+    
+    if files and online:
         series_name, season_num = anime_utils.extract_fetch_info(files)
-        season = season_num or args.season
+        season = season_num or season
         if series_name:
             csv_data = video_utils.fetch_episode_data(series_name, season=season)
             episode_data = video_utils.process_episode_data(csv_data)
         else:
             print("No valid anime title found in files for online mode.")
+            
+    return episode_data
 
-    # Process the files
-    _process_files(files, base_dir, season=args.season, episode_data=episode_data)
+
+def handle_anime(args):
+    """Handle anime file processing."""
+    
+    file, directory, season, online = _get_anime_args(args=args)
+    files, base_dir = _get_files_to_process(file=file, directory=directory)
+    episode_data = _get_episode_data(files=files, online=online)
+    
+    print("Processing anime files ...")
+    print(f"Online mode: {online}")
+
+    _process_files(files, base_dir, season=season, episode_data=episode_data)
