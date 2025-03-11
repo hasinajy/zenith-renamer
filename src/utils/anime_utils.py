@@ -5,8 +5,8 @@ EPISODE_PATTERNS = [
     r"Watch (.*?) Episode (\d+)",               # Watch Raise wa Tanin ga Ii Episode 01 English Subbed at Site Name
     r"(.*?) Episode (\d+)",                     # Raise wa Tanin ga Ii Episode 01 English Subbed at Site Name
     r"(.*?) (\d+)(.*?) Season Episode (\d+)",   # Raise wa Tanin ga Ii 1st Season Episode 01 English Subbed at Site Name
-    r"(.*?) - S(\d+) - E(\d+)",
-    r"(.*?) - E(\d+)"
+    r"(.*?) - S(\d+) - E(\d+)",                 # Raise wa Tanin ga Ii - S01 - E01
+    r"(.*?) - E(\d+)"                           # Raise wa Tanin ga Ii - E01
 ]
 
 
