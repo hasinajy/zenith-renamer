@@ -70,17 +70,15 @@ def parse_arguments() -> argparse.Namespace:
 
 
 def main() -> None:
-    """Entry point for ZenithRenamer CLI.
-
-    Parses command-line arguments and dispatches to the appropriate handler.
-    """
+    """Main entry point for ZenithRenamer."""
     try:
         args = parse_arguments()
-        handlers.COMMAND_HANDLERS[args.command](args)
+        handler_class = handlers.COMMAND_HANDLERS[args.command]
+        handler = handler_class(args)
+        handler.run()
     except argparse.ArgumentError as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
-
 
 if __name__ == "__main__":
     main()

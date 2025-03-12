@@ -1,11 +1,11 @@
-from .anime_handler import handle_anime
-from .movie_handler import handle_movie
-from .book_handler import handle_book
-from .std_handler import handle_std
+from .anime_handler import AnimeHandler
+from .movie_handler import MovieHandler
+from .book_handler import BookHandler
+from .std_handler import StdHandler
 
 COMMAND_HANDLERS = {
-    "anime": handle_anime,
-    "movie": handle_movie,
-    "book": handle_book,
-    "std": handle_std
+    "anime": AnimeHandler,
+    "movie": MovieHandler,
+    "book": BookHandler,
+    "std": StdHandler
 }
