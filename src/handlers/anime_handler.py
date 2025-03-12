@@ -2,100 +2,122 @@ import os
 from utils import anime_utils, video_utils
 
 
-def _rename_anime_file(old_path, filename, season=None, episode_title=None):
-    """Rename an anime file based on its pattern and return the new name."""
-    series_name, _, episode_num, file_ext = anime_utils.extract_anime_info(filename)
-    season = f"S{str(season).zfill(2)}" if season else None
-
-    try:
-        if series_name and episode_num and file_ext:
-            episode_num = f"E{str(episode_num).zfill(2)}"
-            
-            if season and episode_title:
-                new_name = (
-                    f"{series_name} - {season} - {episode_num} - {episode_title}{file_ext}"
-                )
-            elif episode_title:
-                new_name = (
-                    f"{series_name} - {episode_num} - {episode_title}{file_ext}"
-                )
-            elif season:
-                new_name = f"{series_name} - {season} - {episode_num}{file_ext}"
-            else:
-                new_name = f"{series_name} - {episode_num}{file_ext}"
-
-            new_path = os.path.join(os.path.dirname(old_path), new_name)
-            
-            if old_path != new_path:
-                os.rename(old_path, new_path)
-                print(f"Renamed: {filename} -> {new_name}")
-            else:
-                print("Did not rename: ", new_name)
-        else:
-            print(f"Skipping: {filename} (no episode pattern found)")
-    except OSError as e:
-        print(f"Error renaming {filename}: {e}")
-
-
-def _process_files(files, base_dir, season=0, episode_data=None):
-    """Process a list of files for renaming with optional online data."""
-    for filename in files:
-        old_path = os.path.join(base_dir, filename) if base_dir else filename # Handle relative paths
-        series_name, season_num, episode_num, _ = anime_utils.extract_anime_info(filename)
-        season = season_num or season
-        episode_title = None
-
-        if series_name and episode_data:
-            episode_title = episode_data.get((series_name, season, episode_num))
-        
-        _rename_anime_file(old_path, filename, season=season, episode_title=episode_title)
- 
-
 def _get_anime_args(args):
-    return args.directory, args.file, args.season, args.online
+    return args.file, args.directory, args.season, args.online
 
 
 def _get_files_to_process(file, directory):
-    files = []
+    filenames = []
     base_dir = ""
     
     if file:
-        files = [os.path.basename(file)]
+        filenames = [os.path.basename(file)]
         base_dir = os.path.dirname(file)
     elif directory:
         try:
-            files = video_utils.list_video_files(directory)
+            filenames = video_utils.list_video_files(directory)
             base_dir = directory
         except OSError as e:
             print(f"Error accessing directory: {e}")
             return
     
-    return files, base_dir
+    return filenames, base_dir
 
 
-def _get_episode_data(files, online):
-    episode_data = None
+def _make_new_name(episode_info: tuple, season_arg):
+    if not episode_info:
+        return
     
-    if files and online:
-        series_name, season_num = anime_utils.extract_fetch_info(files)
-        season = season_num or season
-        if series_name:
-            csv_data = video_utils.fetch_episode_data(series_name, season=season)
-            episode_data = video_utils.process_episode_data(csv_data)
-        else:
-            print("No valid anime title found in files for online mode.")
-            
-    return episode_data
+    series_name, season, episode, episode_title, filename = episode_info
+    _, file_ext = os.path.splitext(filename)
+    season_str = f"S{str(season or season_arg).zfill(2)}"
+    episode_str = f"E{str(episode).zfill(2)}"
+    
+    if season and episode_title:
+        new_name = (
+            f"{series_name} - {season_str} - {episode_str} - {episode_title}{file_ext}"
+        )
+    elif episode_title:
+        new_name = (
+            f"{series_name} - {episode_str} - {episode_title}{file_ext}"
+        )
+    elif season or season_arg:
+        new_name = f"{series_name} - {season_str} - {episode_str}{file_ext}"
+    else:
+        new_name = f"{series_name} - {episode_str}{file_ext}"
+
+    return filename, new_name
+
+
+def _rename_file(old_name, new_name, base_dir):
+    old_path = os.path.join(base_dir, old_name)
+    new_path = os.path.join(base_dir, new_name)
+    
+    if old_path == new_path:
+        print(f"Skipping {new_path}. Already renamed.")
+    else:
+        try:
+            os.rename(old_path, new_path)
+        except OSError as e:
+            print(f"Error renaming {old_name}: {e}")
+
+
+def _rename_episode(episode_info: tuple, season_arg, base_dir):
+    if not episode_info:
+        return
+    
+    old_name, new_name = _make_new_name(episode_info=episode_info, season_arg=season_arg)
+    _rename_file(old_name=old_name, new_name=new_name, base_dir=base_dir)
+
+
+def _rename_season(season_info: dict, season_arg, base_dir):
+    if not season_info:
+        return
+
+    season_episodes = tuple(season_info.keys())
+    
+    for episode in season_episodes:
+        episode_info = season_info[episode]
+        _rename_episode(episode_info=episode_info, season_arg=season_arg, base_dir=base_dir)
+
+
+def _rename_series(series_info: dict, season_arg, base_dir):
+    if not series_info:
+        return
+    
+    series_seasons = tuple(series_info.keys())
+    
+    for season in series_seasons:
+        season_info = series_info[season]
+        _rename_season(season_info=season_info, season_arg=season_arg, base_dir=base_dir)
+
+
+def _process_files(all_anime_info: dict=None, season_arg=0, base_dir=""):
+    """Process a list of files for renaming with optional online data."""
+    
+    if len(all_anime_info.keys()) > 1 and season_arg:
+        print("The season number number will be used on all anime series found.")
+        user_confirmation = input("Are you sure you want to continue? (Yes/No) : ")
+        
+        if user_confirmation.lower() != "yes":
+            print("Aborting operation.")
+            return
+    
+    anime_titles = tuple(all_anime_info.keys())
+    
+    for title in anime_titles:
+        series_info = all_anime_info[title]
+        _rename_series(series_info=series_info, season_arg=season_arg, base_dir=base_dir)
 
 
 def handle_anime(args):
     """Handle anime file processing."""
     
     file, directory, season, online = _get_anime_args(args=args)
-    files, base_dir = _get_files_to_process(file=file, directory=directory)
-    episode_data = _get_episode_data(files=files, online=online)
+    filenames, base_dir = _get_files_to_process(file=file, directory=directory)
+    all_anime_info = anime_utils.get_all_anime_info(filenames=filenames, online=online)
     
     print("Processing anime files ...")
     print(f"Online mode: {online}")
 
-    _process_files(files, base_dir, season=season, episode_data=episode_data)
+    _process_files(all_anime_info=all_anime_info, season_arg=season, base_dir=base_dir)
