@@ -2,8 +2,13 @@ import argparse
 import os
 
 
-def add_common_arguments(parser, has_online=True):
-    """Add shared arguments to a parser."""
+def add_common_arguments(parser: argparse.ArgumentParser, has_online: bool = True) -> None:
+    """Add common arguments shared across subcommands to a parser.
+
+    Args:
+        parser (argparse.ArgumentParser): The parser to add arguments to.
+        has_online (bool): Whether to include the --online argument (default: True).
+    """
     parser.add_argument(
         "-f", "--file",
         help="Path to an individual file"
@@ -15,15 +20,21 @@ def add_common_arguments(parser, has_online=True):
     
     if has_online:
         parser.add_argument(
-        "--online",
-        action="store_true",
-        help="Fetch data from an API"
-    )
-    
-    
-def handle_invalid_arguments(args):
-    """Validate arguments and raise errors for invalid inputs."""
-    # Check if both directory and file are provided
+            "--online",
+            action="store_true",
+            help="Fetch data from an API"
+        )
+
+
+def handle_invalid_arguments(args: argparse.Namespace) -> None:
+    """Validate arguments and raise errors for invalid inputs.
+
+    Args:
+        args (argparse.Namespace): Parsed command-line arguments.
+
+    Raises:
+        argparse.ArgumentError: If arguments are invalid (e.g., both file and directory specified).
+    """
     has_directory = hasattr(args, "directory") and args.directory
     has_file = hasattr(args, "file") and args.file
 
@@ -33,7 +44,6 @@ def handle_invalid_arguments(args):
             "Cannot specify both --directory and --file; choose one."
         )
 
-    # Validate directory if provided
     if has_directory:
         if not os.path.exists(args.directory):
             raise argparse.ArgumentError(
@@ -46,7 +56,6 @@ def handle_invalid_arguments(args):
                 "The provided path is not a directory."
             )
 
-    # Validate file if provided
     if has_file:
         if not os.path.exists(args.file):
             raise argparse.ArgumentError(

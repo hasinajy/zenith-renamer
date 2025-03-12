@@ -4,8 +4,12 @@ from utils import cli_utils
 import handlers
 
 
-def parse_arguments():
-    """Parses command-line arguments for ZenithRenamer."""
+def parse_arguments() -> argparse.Namespace:
+    """Parse command-line arguments for ZenithRenamer.
+
+    Returns:
+        argparse.Namespace: Parsed arguments containing the user's command and options.
+    """
     parser = argparse.ArgumentParser(
         description=(
             "ZenithRenamer: From Digital Anarchy to Media Mastery\n\n"
@@ -65,8 +69,11 @@ def parse_arguments():
     return args
 
 
-def main():
-    """Entry point for ZenithRenamer CLI."""
+def main() -> None:
+    """Entry point for ZenithRenamer CLI.
+
+    Parses command-line arguments and dispatches to the appropriate handler.
+    """
     try:
         args = parse_arguments()
         handlers.COMMAND_HANDLERS[args.command](args)
