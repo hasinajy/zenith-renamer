@@ -1,5 +1,5 @@
 from .base_handler import BaseHandler
-from utils import anime_utils, video_utils
+from utils import anime_utils
 import os
 from typing import Dict, List, Tuple
 
@@ -11,13 +11,13 @@ class AnimeHandler(BaseHandler):
         online (bool): Whether to fetch data online.
     """
 
-    def __init__(self, args):
+    def __init__(self, args, config: Dict):
         """Initialize the anime handler with arguments.
 
         Args:
             args: Parsed command-line arguments.
         """
-        super().__init__(args)
+        super().__init__(args, config)
         self.season = args.season
         self.online = args.online
 
@@ -30,7 +30,11 @@ class AnimeHandler(BaseHandler):
         Returns:
             List[str]: List of video filenames.
         """
-        return video_utils.list_video_files(directory)
+        extensions = tuple(self.config["anime"]["extensions"])
+        return [
+            f for f in os.listdir(directory)
+            if f.lower().endswith(extensions) and os.path.isfile(os.path.join(directory, f))
+        ]
 
     def get_renaming_map(self, filenames: List[str]) -> Dict[str, str]:
         """Generate renaming map for anime files.

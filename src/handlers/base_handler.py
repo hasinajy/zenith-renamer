@@ -10,13 +10,15 @@ class BaseHandler(ABC):
         base_dir: The base directory of the files being processed.
     """
 
-    def __init__(self, args):
-        """Initialize the handler with command-line arguments.
+    def __init__(self, args, config: Dict):
+        """Initialize the handler with arguments and configuration.
 
         Args:
             args: Parsed arguments from argparse.
+            config: Configuration dictionary.
         """
         self.args = args
+        self.config = config
         self.base_dir: Optional[str] = None
 
     def get_files(self) -> List[str]:

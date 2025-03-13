@@ -1,19 +1,30 @@
 from .base_handler import BaseHandler
-from utils import video_utils, remove_special_characters
 import os
 from typing import List, Dict
 
 class MovieHandler(BaseHandler):
-    def list_relevant_files(self, directory: str) -> List[str]:
-        """List all video files in the specified directory using video_utils."""
-        return video_utils.list_video_files(directory)
+    """Handler for renaming movie files."""
 
-    def get_renaming_map(self, filenames: List[str]) -> Dict[str, str]:
-        """Generate a renaming map by cleaning file names."""
-        renaming_map = {}
-        for filename in filenames:
-            name, ext = os.path.splitext(filename)
-            cleaned_name = remove_special_characters(name).replace(" ", "_")
-            new_name = cleaned_name + ext
-            renaming_map[filename] = new_name
-        return renaming_map
+    def __init__(self, args, config: Dict):
+        super().__init__(args, config)
+
+    def list_relevant_files(self, directory: str) -> List[str]:
+        """List files relevant to movies based on configured extensions.
+
+        Args:
+            directory (str): Directory to list files from.
+
+        Returns:
+            List[str]: List of relevant filenames.
+        """
+        extensions = tuple(self.config["movie"]["extensions"])
+        return [
+            f for f in os.listdir(directory)
+            if f.lower().endswith(extensions) and os.path.isfile(os.path.join(directory, f))
+        ]
+
+    def run(self) -> None:
+        """Execute movie renaming logic (placeholder)."""
+        self.base_dir = self.args.directory
+        files = self.list_relevant_files(self.base_dir)
+        print(f"Movie files to process: {files}")

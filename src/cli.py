@@ -1,6 +1,6 @@
 import argparse
 import sys
-from utils import cli_utils
+from utils import cli_utils, config
 import handlers
 
 
@@ -21,6 +21,11 @@ def parse_arguments() -> argparse.Namespace:
             "and elevate your media experience."
         ),
         formatter_class=argparse.RawDescriptionHelpFormatter
+    )
+    parser.add_argument(
+        "--config",
+        default="config.json",
+        help="Path to configuration file."
     )
 
     subparsers = parser.add_subparsers(
@@ -73,10 +78,14 @@ def main() -> None:
     """Main entry point for ZenithRenamer."""
     try:
         args = parse_arguments()
+        config_data = config.load_config(args.config)
         handler_class = handlers.COMMAND_HANDLERS[args.command]
-        handler = handler_class(args)
+        handler = handler_class(args, config_data)
         handler.run()
-    except argparse.ArgumentError as e:
+    except KeyError:
+        print(f"Error: Invalid command '{args.command}'.", file=sys.stderr)
+        sys.exit(1)
+    except Exception as e:
         print(f"Error: {e}", file=sys.stderr)
         sys.exit(1)
 
