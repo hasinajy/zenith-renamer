@@ -34,7 +34,7 @@ def load_config(config_path: str) -> Dict:
             else:
                 config[key] = user_config[key]
     except FileNotFoundError:
-        print(f"Configuration file {config_path} not found. Using default configurations.")
+        print(f"[WARNING] Configuration file {config_path} not found. Using defaults.")
     except json.JSONDecodeError:
-        print(f"Error parsing {config_path}. Using default configurations.")
+        print(f"[WARNING] Error parsing {config_path}. Using defaults.")
     return config

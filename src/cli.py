@@ -76,6 +76,7 @@ def parse_arguments() -> argparse.Namespace:
 
 def main() -> None:
     """Main entry point for ZenithRenamer."""
+    print("[INFO] Starting ZenithRenamer...")
     try:
         args = parse_arguments()
         config_data = config.load_config(args.config)
@@ -83,11 +84,12 @@ def main() -> None:
         handler = handler_class(args, config_data)
         handler.run()
     except KeyError:
-        print(f"Error: Invalid command '{args.command}'.", file=sys.stderr)
+        print(f"[ERROR] Invalid command '{args.command}'.", file=sys.stderr)
         sys.exit(1)
     except Exception as e:
-        print(f"Error: {e}", file=sys.stderr)
+        print(f"[ERROR] Unexpected error: {e}", file=sys.stderr)
         sys.exit(1)
+    print("[INFO] ZenithRenamer finished successfully.")
 
 if __name__ == "__main__":
     main()

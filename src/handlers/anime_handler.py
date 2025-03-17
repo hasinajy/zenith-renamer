@@ -47,14 +47,15 @@ class AnimeHandler(BaseHandler):
         """
         all_anime_info = anime_utils.get_all_anime_info(filenames, self.online)
         if len(all_anime_info) > 1 and self.season:
-            print("The season number will be used on all anime series found.")
+            print("[WARNING] The season number will be used on all anime series found.")
             user_confirmation = input("Are you sure you want to continue? (Yes/No): ")
             if user_confirmation.lower() != "yes":
+                print("[INFO] Operation aborted by user.")
                 return {}
         renaming_map = {}
-        for _, series_info in all_anime_info.items():
-            for _, season_info in series_info.items():
-                for _, episode_info in season_info.items():
+        for series_name, series_info in all_anime_info.items():
+            for season, season_info in series_info.items():
+                for episode, episode_info in season_info.items():
                     old_name, new_name = self._make_new_name(episode_info, self.season)
                     renaming_map[old_name] = new_name
         return renaming_map

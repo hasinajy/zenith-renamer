@@ -36,7 +36,8 @@ class BaseHandler(ABC):
                 filenames = self.list_relevant_files(self.args.directory)
                 self.base_dir = self.args.directory
             except OSError as e:
-                print(f"Error accessing directory: {e}")
+                print(f"[ERROR] Error accessing directory: {e}")
+                return []
         return filenames
 
     @abstractmethod
@@ -73,17 +74,19 @@ class BaseHandler(ABC):
         old_path = os.path.join(self.base_dir, old_name)
         new_path = os.path.join(self.base_dir, new_name)
         if old_path == new_path:
-            print(f"Skipping {new_path}. Already renamed.")
+            print(f"[INFO] Skipping {new_path}. Already renamed.")
         else:
             try:
                 os.rename(old_path, new_path)
+                print(f"[INFO] Renamed {old_name} to {new_name}")
             except OSError as e:
-                print(f"Error renaming {old_name}: {e}")
+                print(f"[ERROR] Error renaming {old_name}: {e}")
 
     def process_files(self) -> None:
         """Process the files by generating the renaming map and renaming them."""
         filenames = self.get_files()
         if not filenames:
+            print("[INFO] No files to process.")
             return
         renaming_map = self.get_renaming_map(filenames)
         if renaming_map:
