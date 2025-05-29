@@ -1,7 +1,7 @@
 import argparse
 import sys
-from utils import arg_utils
 import handlers
+from utils import arg_utils
 
 
 def parse_arguments():
