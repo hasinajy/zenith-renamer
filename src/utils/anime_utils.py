@@ -117,27 +117,3 @@ def extract_anime_info(
             return _process_match(config, match, file_ext=file_ext)
 
     return (None, None, None, None)
-
-
-def extract_fetch_info(files: List[str]) -> Optional[Tuple[str, int]]:
-    """
-    Extracts the series name and season number from the first matching file in a list.
-
-    This function is intended for scenarios where you need to get basic series
-    information from a collection of files (e.g., to fetch online data for the series).
-    It prioritizes finding a file where both series name and season number are present.
-
-    Args:
-        files: A list of filenames (strings) to attempt to extract information from.
-
-    Returns:
-        A tuple of (series_name, season_num) if found in any file,
-        otherwise None. The season_num will always be an int here.
-    """
-    for filename in files:
-        series_name, season_num, _, _ = extract_anime_info(filename)
-        # We specifically want both series_name and season_num to be non-None.
-        # This implicitly handles cases where season_num might be defaulted to 1.
-        if series_name and season_num is not None:
-            return series_name, season_num
-    return None
