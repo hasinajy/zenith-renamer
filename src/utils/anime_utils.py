@@ -3,7 +3,17 @@ import re
 from typing import List, Optional, Tuple, Dict, Any
 
 EPISODE_PATTERNS_CONFIG = [
-    # Example: "Raise wa Tanin ga Ii 0st Season Episode 01 English Subbed at Site Name"
+    # Example: "Watch Raise wa Tanin ga Ii 1st Season Episode 01 English Subbed at Site Name"
+    {
+        "pattern": r"Watch\s+(?P<series_name>.*?) (?P<season_num>\d+)(?:st|nd|rd|th)? Season Episode\s+(?P<episode_num>\d+)",
+        "groups": {
+            "series_name": "series_name",
+            "season_num": "season_num",
+            "episode_num": "episode_num",
+        },
+        "season_default": None,
+    },
+    # Example: "Raise wa Tanin ga Ii 1st Season Episode 01 English Subbed at Site Name"
     {
         "pattern": r"^(?P<series_name>.*?) (?P<season_num>\d+)(?:st|nd|rd|th)? Season Episode\s+(?P<episode_num>\d+)",
         "groups": {
@@ -11,7 +21,7 @@ EPISODE_PATTERNS_CONFIG = [
             "season_num": "season_num",
             "episode_num": "episode_num",
         },
-        "season_default": 0,  # Assume 1st season if not explicitly captured
+        "season_default": None,
     },
     # Example: "Watch Raise wa Tanin ga Ii Episode 01 English Subbed at Site Name"
     {
