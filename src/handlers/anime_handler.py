@@ -10,22 +10,18 @@ def _rename_anime_file(old_path, filename, season=None, episode_title=None):
     try:
         if series_name and episode_num and file_ext:
             episode_num = f"E{str(episode_num).zfill(2)}"
-            
+
             if season and episode_title:
-                new_name = (
-                    f"{series_name} - {season} - {episode_num} - {episode_title}{file_ext}"
-                )
+                new_name = f"{series_name} - {season} - {episode_num} - {episode_title}{file_ext}"
             elif episode_title:
-                new_name = (
-                    f"{series_name} - {episode_num} - {episode_title}{file_ext}"
-                )
+                new_name = f"{series_name} - {episode_num} - {episode_title}{file_ext}"
             elif season:
                 new_name = f"{series_name} - {season} - {episode_num}{file_ext}"
             else:
                 new_name = f"{series_name} - {episode_num}{file_ext}"
 
             new_path = os.path.join(os.path.dirname(old_path), new_name)
-            
+
             if old_path != new_path:
                 os.rename(old_path, new_path)
                 print(f"Renamed: {filename} -> {new_name}")
@@ -40,15 +36,21 @@ def _rename_anime_file(old_path, filename, season=None, episode_title=None):
 def _process_files(files, base_dir, season=0, episode_data=None):
     """Process a list of files for renaming with optional online data."""
     for filename in files:
-        old_path = os.path.join(base_dir, filename) if base_dir else filename # Handle relative paths
-        series_name, season_num, episode_num, _ = anime_utils.extract_anime_info(filename)
+        old_path = (
+            os.path.join(base_dir, filename) if base_dir else filename
+        )  # Handle relative paths
+        series_name, season_num, episode_num, _ = anime_utils.extract_anime_info(
+            filename
+        )
         season = season_num or season
         episode_title = None
 
         if series_name and episode_data:
             episode_title = episode_data.get((series_name, season, episode_num))
-        
-        _rename_anime_file(old_path, filename, season=season, episode_title=episode_title)
+
+        _rename_anime_file(
+            old_path, filename, season=season, episode_title=episode_title
+        )
 
 
 def handle_anime(args):
