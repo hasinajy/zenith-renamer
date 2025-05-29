@@ -1,7 +1,163 @@
 import argparse
 import os
-from typing import List, Dict, Optional, Tuple
-from utils import anime_utils, video_utils
+import re
+from typing import Any, List, Dict, Optional, Tuple
+
+SUBTITLE_EXTENSIONS: Tuple[str, ...] = (
+    ".srt",
+    ".vtt",
+    ".ass",
+    ".sub",
+)
+VIDEO_EXTENSIONS: Tuple[str, ...] = (".mp4", ".mkv", ".ts", ".avi")
+RELEVANT_MEDIA_EXTENSIONS: Tuple[str, ...] = VIDEO_EXTENSIONS + SUBTITLE_EXTENSIONS
+
+EPISODE_PATTERNS_CONFIG = [
+    # Example: "Watch Raise wa Tanin ga Ii 1st Season Episode 01 English Subbed at Site Name"
+    {
+        "pattern": r"Watch\s+(?P<series_name>.*?) (?P<season_num>\d+)(?:st|nd|rd|th)? Season Episode\s+(?P<episode_num>\d+)",
+        "groups": {
+            "series_name": "series_name",
+            "season_num": "season_num",
+            "episode_num": "episode_num",
+        },
+        "season_default": None,
+    },
+    # Example: "Raise wa Tanin ga Ii 1st Season Episode 01 English Subbed at Site Name"
+    {
+        "pattern": r"^(?P<series_name>.*?) (?P<season_num>\d+)(?:st|nd|rd|th)? Season Episode\s+(?P<episode_num>\d+)",
+        "groups": {
+            "series_name": "series_name",
+            "season_num": "season_num",
+            "episode_num": "episode_num",
+        },
+        "season_default": None,
+    },
+    # Example: "Watch Raise wa Tanin ga Ii Episode 01 English Subbed at Site Name"
+    {
+        "pattern": r"Watch\s+(?P<series_name>.*?) Episode\s+(?P<episode_num>\d+)",
+        "groups": {"series_name": "series_name", "episode_num": "episode_num"},
+        "season_default": None,
+    },
+    # Example: "Raise wa Tanin ga Ii Episode 01 English Subbed at Site Name"
+    {
+        "pattern": r"^(?P<series_name>.*?) Episode\s+(?P<episode_num>\d+)",
+        "groups": {"series_name": "series_name", "episode_num": "episode_num"},
+        "season_default": None,
+    },
+]
+
+
+def _process_match(
+    config: Dict[str, Any], match: re.Match, file_ext: Optional[str] = None
+) -> Tuple[Optional[str], Optional[int], Optional[int], Optional[str]]:
+    """
+    Processes a regex match object based on its associated configuration and returns extracted data.
+
+    This function uses named capture groups from the regex pattern defined in the config
+    to extract the series name, season number, and episode number in a robust way,
+    independent of the order of capture groups.
+
+    Args:
+        config: A dictionary containing the pattern configuration, including
+                the 'groups' mapping and 'season_default' (if applicable).
+        match: A re.Match object resulting from a successful regex search.
+        file_ext: The file extension (e.g., ".mkv", ".mp4").
+
+    Returns:
+        A tuple containing:
+        - series_name (str or None): The extracted series name.
+        - season_num (int or None): The extracted season number, or None if not present/defaulted.
+        - episode_num (int or None): The extracted episode number.
+        - file_ext (str or None): The original file extension.
+    """
+    series_name = (
+        match.group(config["groups"].get("series_name")).strip()
+        if "series_name" in config["groups"]
+        else None
+    )
+
+    season_num = None
+    if "season_num" in config["groups"]:
+        try:
+            season_num = int(match.group(config["groups"]["season_num"]))
+        except (ValueError, IndexError):
+            season_num = None
+    elif "season_default" in config:
+        season_num = config["season_default"]
+
+    episode_num = None
+    if "episode_num" in config["groups"]:
+        try:
+            episode_num = int(match.group(config["groups"]["episode_num"]))
+        except (ValueError, IndexError):
+            episode_num = None
+
+    return (series_name, season_num, episode_num, file_ext)
+
+
+def _extract_anime_info(
+    filename: str, patterns_config: List[Dict[str, Any]] = EPISODE_PATTERNS_CONFIG
+) -> Tuple[Optional[str], Optional[int], Optional[int], Optional[str]]:
+    """
+    Matches a filename against a list of predefined patterns to extract anime information.
+
+    It iterates through the `patterns_config`, attempting to find a match.
+    The first successful match's data is processed and returned.
+
+    Args:
+        filename: The full name of the file (e.g., "My Anime - S01E05.mkv").
+        patterns_config: A list of dictionaries, where each dictionary defines a regex
+                         pattern and how to process its capture groups. Defaults to
+                         `EPISODE_PATTERNS_CONFIG`.
+
+    Returns:
+        A tuple containing:
+        - series_name (str or None): The extracted series name.
+        - season_num (int or None): The extracted season number.
+        - episode_num (int or None): The extracted episode number.
+        - file_ext (str or None): The original file extension (e.g., ".mkv").
+        Returns (None, None, None, None) if no pattern matches.
+    """
+    file_ext = os.path.splitext(filename)[1]
+    for config in patterns_config:
+        compiled_pattern = re.compile(config["pattern"], re.IGNORECASE)
+        match = compiled_pattern.search(filename)
+        if match:
+            return _process_match(config, match, file_ext=file_ext)
+
+    return (None, None, None, None)
+
+
+def _list_anime_files(
+    directory_path: str, valid_extensions: Tuple[str, ...] = RELEVANT_MEDIA_EXTENSIONS
+) -> List[str]:
+    """
+    Lists files within a specified directory that match a given set of valid extensions.
+
+    This function iterates through all entries in the provided directory and returns
+    a list of filenames (not full paths) that have one of the specified extensions.
+    The extension check is case-insensitive.
+
+    Args:
+        directory_path: The path to the directory to scan for media files.
+        valid_extensions: A tuple of string extensions (e.g., ".mp4", ".srt")
+                          to filter the files by. Defaults to RELEVANT_MEDIA_EXTENSIONS.
+
+    Returns:
+        A list of strings, where each string is the basename of a file that
+        matches the criteria.
+
+    Raises:
+        FileNotFoundError: If the specified `directory_path` does not exist.
+        NotADirectoryError: If the specified `directory_path` exists but is not a directory.
+        PermissionError: If the user does not have sufficient permissions to access the directory.
+    """
+    return [
+        filename
+        for filename in os.listdir(directory_path)
+        if filename.lower().endswith(valid_extensions)
+    ]
 
 
 def _construct_new_anime_filename(
@@ -84,7 +240,7 @@ def _rename_anime_file(
         May rename a file on the filesystem.
         Prints status messages and error messages to stdout/stderr.
     """
-    series_name, _, episode_num, file_ext = anime_utils.extract_anime_info(filename)
+    series_name, _, episode_num, file_ext = _extract_anime_info(filename)
     try:
         if series_name and episode_num is not None and file_ext:
             new_name = _construct_new_anime_filename(
@@ -136,9 +292,7 @@ def _process_filenames(
         old_path = os.path.join(base_dir, filename) if base_dir else filename
 
         # Extract existing info from the filename first
-        series_name, season_from_file, episode_num, _ = anime_utils.extract_anime_info(
-            filename
-        )
+        series_name, season_from_file, episode_num, _ = _extract_anime_info(filename)
 
         # Determine the effective season for this file:
         # Prefer season from file, otherwise use the default_season provided.
@@ -181,7 +335,7 @@ def handle_anime(args: argparse.Namespace):
 
     if args.directory:
         try:
-            filenames = video_utils.list_media_files(args.directory)
+            filenames = _list_anime_files(args.directory)
             base_dir = args.directory
         except FileNotFoundError:
             print(
