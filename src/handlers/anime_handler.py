@@ -4,6 +4,7 @@ from typing import List, Dict, Optional, Tuple
 from utils import anime_utils, video_utils
 
 
+# TODO: Increase modularity of the functions for readability
 def _rename_anime_file(
     old_path: str,
     filename: str,
@@ -156,36 +157,7 @@ def handle_anime(args: argparse.Namespace):
         return
 
     episode_data: Optional[Dict[Tuple[str, int, int], str]] = None
-    if args.online and filenames:
-        series_name_for_fetch, season_for_fetch = anime_utils.extract_fetch_info(
-            filenames
-        )
-        season_to_use_for_api = (
-            season_for_fetch if season_for_fetch is not None else args.season
-        )
-
-        if series_name_for_fetch:
-            print(
-                f"Attempting to fetch data for '{series_name_for_fetch}' (Season: {season_to_use_for_api})..."
-            )
-            csv_data = video_utils.fetch_episode_data(
-                series_name_for_fetch, season=season_to_use_for_api
-            )
-            if csv_data:
-                episode_data = video_utils.process_episode_data(csv_data)
-                if not episode_data:
-                    print(
-                        f"Warning: No episode data processed for '{series_name_for_fetch}'. Check CSV content."
-                    )
-            else:
-                print(
-                    f"Warning: Could not fetch episode data for '{series_name_for_fetch}'."
-                )
-        else:
-            print(
-                "No recognizable series title found in files for online mode; skipping data fetch."
-            )
-
+    # TODO: Populate episode_data if 'online' arg is present
     _process_filenames(
         filenames, base_dir, default_season=args.season, episode_data=episode_data
     )
