@@ -4,19 +4,74 @@ from typing import List, Dict, Optional, Tuple
 from utils import anime_utils, video_utils
 
 
-# TODO: Increase modularity of the functions for readability
+def _construct_new_anime_filename(
+    series_name: str,
+    episode_num: int,
+    file_ext: str,
+    season: Optional[int] = None,
+    episode_title: Optional[str] = None,
+) -> str:
+    """
+    Constructs the new standardized filename for an anime episode.
+
+    Args:
+        series_name: The name of the anime series.
+        episode_num: The episode number.
+        file_ext: The file extension (e.g., ".mkv").
+        season: The season number. If None or 0, it's not included in the filename.
+        episode_title: The title of the episode (optional).
+
+    Returns:
+        A string representing the new standardized filename.
+    """
+    season_str = f"S{season:02d}" if season is not None and season != 0 else None
+    episode_num_str = f"E{episode_num:02d}"
+
+    name_parts = [series_name]
+    if season_str:
+        name_parts.append(season_str)
+    name_parts.append(episode_num_str)
+    if episode_title:
+        name_parts.append(episode_title)
+
+    return " - ".join(name_parts) + file_ext
+
+
+def _perform_rename_operation(
+    old_path: str, new_path: str, original_filename: str
+) -> None:
+    """
+    Executes the file renaming operation and reports its status.
+
+    Args:
+        old_path: The current full path of the file.
+        new_path: The desired full path for the renamed file.
+        original_filename: The original basename of the file, used for logging.
+
+    Side Effects:
+        Renames the file on the filesystem if paths are different.
+        Prints messages to stdout.
+    """
+    if old_path != new_path:
+        os.rename(old_path, new_path)
+        print(f"Renamed: {original_filename} -> {os.path.basename(new_path)}")
+    else:
+        print(
+            f"Did not rename: {os.path.basename(new_path)} (new path is same as old path)"
+        )
+
+
 def _rename_anime_file(
     old_path: str,
     filename: str,
     season: Optional[int] = None,
     episode_title: Optional[str] = None,
-):
+) -> None:
     """
     Renames a single anime file based on extracted information and provided details.
 
-    This function constructs a new filename using the series name, season number,
-    episode number, and an optional episode title. It then performs the rename
-    operation and prints a status message.
+    This function orchestrates the process of extracting information, constructing
+    the new filename, and performing the actual file system rename.
 
     Args:
         old_path: The full current path to the file.
@@ -26,32 +81,21 @@ def _rename_anime_file(
         episode_title: An optional title for the episode, fetched from an API.
 
     Side Effects:
-        Renames the file on the filesystem.
-        Prints messages to stdout regarding renaming status or errors.
+        May rename a file on the filesystem.
+        Prints status messages and error messages to stdout/stderr.
     """
     series_name, _, episode_num, file_ext = anime_utils.extract_anime_info(filename)
-    season_str = f"S{season:02d}" if season is not None and season != 0 else None
-
     try:
         if series_name and episode_num is not None and file_ext:
-            episode_num_str = f"E{episode_num:02d}"
-
-            # Construct parts of the new name dynamically
-            name_parts = [series_name]
-            if season_str:
-                name_parts.append(season_str)
-            name_parts.append(episode_num_str)
-            if episode_title:
-                name_parts.append(episode_title)
-
-            new_name = " - ".join(name_parts) + file_ext
+            new_name = _construct_new_anime_filename(
+                series_name=series_name,
+                episode_num=episode_num,
+                file_ext=file_ext,
+                season=season,
+                episode_title=episode_title,
+            )
             new_path = os.path.join(os.path.dirname(old_path), new_name)
-
-            if old_path != new_path:
-                os.rename(old_path, new_path)
-                print(f"Renamed: {filename} -> {new_name}")
-            else:
-                print(f"Did not rename: {new_name} (new path is same as old path)")
+            _perform_rename_operation(old_path, new_path, filename)
         else:
             print(
                 f"Skipping: {filename} (could not extract essential info for renaming)"
