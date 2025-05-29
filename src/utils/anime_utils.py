@@ -111,7 +111,6 @@ def extract_anime_info(
     """
     file_ext = os.path.splitext(filename)[1]
     for config in patterns_config:
-        # Compile regex for efficiency if used many times, or if patterns are dynamic
         compiled_pattern = re.compile(config["pattern"], re.IGNORECASE)
         match = compiled_pattern.search(filename)
         if match:
