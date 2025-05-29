@@ -139,9 +139,29 @@ def handle_anime(args: argparse.Namespace):
         try:
             filenames = video_utils.list_media_files(args.directory)
             base_dir = args.directory
+        except FileNotFoundError:
+            print(
+                f"Error: The specified directory '{args.directory}' does not exist.",
+                file=os.sys.stderr,
+            )
+            return
+        except NotADirectoryError:
+            print(
+                f"Error: The path '{args.directory}' exists but is not a directory.",
+                file=os.sys.stderr,
+            )
+            return
+        except PermissionError:
+            print(
+                f"Error: Permission denied when accessing directory '{args.directory}'. "
+                "Please check your read permissions.",
+                file=os.sys.stderr,
+            )
+            return
         except OSError as e:
             print(
-                f"Error accessing directory '{args.directory}': {e}", file=os.sys.stderr
+                f"An unexpected OS error occurred when accessing directory '{args.directory}': {e}",
+                file=os.sys.stderr,
             )
             return
     elif args.file:
