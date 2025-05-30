@@ -1,7 +1,7 @@
 import argparse
 import sys
 import handlers
-from utils import arg_utils
+from utils import arg
 
 
 def parse_arguments():
@@ -35,7 +35,7 @@ def parse_arguments():
 
     # Subcommand: anime
     anime_parser = subparsers.add_parser("anime", help="Standardize anime file names")
-    arg_utils.add_common_arguments(anime_parser)
+    arg.add_common_arguments(anime_parser)
     anime_parser.add_argument(
         "-s",
         "--season",
@@ -46,23 +46,23 @@ def parse_arguments():
 
     # Subcommand: movie
     movie_parser = subparsers.add_parser("movie", help="Standardize movie file names")
-    arg_utils.add_common_arguments(movie_parser)
+    arg.add_common_arguments(movie_parser)
 
     # Subcommand: book
     book_parser = subparsers.add_parser("book", help="Standardize book file names")
-    arg_utils.add_common_arguments(book_parser)
+    arg.add_common_arguments(book_parser)
 
     # Subcommand: std
     std_parser = subparsers.add_parser(
         "std", help="Standardize file names within a directory"
     )
-    arg_utils.add_common_arguments(std_parser, has_online=False)
+    arg.add_common_arguments(std_parser, has_online=False)
     std_parser.add_argument(
         "--creative", action="store_true", help="Generate random names"
     )
 
     args = parser.parse_args()
-    arg_utils.handle_invalid_arguments(args)
+    arg.handle_invalid_arguments(args)
     return args
 
 
