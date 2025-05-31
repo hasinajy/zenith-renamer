@@ -70,3 +70,15 @@ def handle_invalid_arguments(args: argparse.Namespace):
             raise argparse.ArgumentError(
                 None, f"The provided path is not a file: '{args.file}'"
             )
+
+    # Validate config file if provided (currently specific to commands that support it, like 'anime')
+    if hasattr(args, "config") and args.config:
+        if not os.path.exists(args.config):
+            raise argparse.ArgumentError(
+                None,
+                f"The provided configuration file path does not exist: '{args.config}'",
+            )
+        if not os.path.isfile(args.config):
+            raise argparse.ArgumentError(
+                None, f"The provided configuration path is not a file: '{args.config}'"
+            )
