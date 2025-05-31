@@ -276,6 +276,7 @@ class AnimeHandler(BaseHandler):
         original_filename: str,
         season_override: Optional[int] = None,
         episode_title: Optional[str] = None,
+        series_title_override: Optional[str] = None,
     ) -> None:
         """
         Renames a single anime file based on extracted info and provided details.
@@ -285,17 +286,25 @@ class AnimeHandler(BaseHandler):
             original_filename: Original filename (basename).
             season_override: Season number to use in the new filename.
             episode_title: Optional episode title.
+            series_title_override: Optional series title to use instead of extracted one.
         """
         try:
-            series_name, _, episode_num, file_ext = self._extract_anime_info(
+            extracted_series_name, _, episode_num, file_ext = self._extract_anime_info(
                 original_filename
             )
 
+            # Determine the final series name: override if provided, else extracted.
+            final_series_name = (
+                series_title_override
+                if series_title_override
+                else extracted_series_name
+            )
+
             if (
-                series_name and episode_num is not None and file_ext is not None
+                final_series_name and episode_num is not None and file_ext is not None
             ):  # file_ext can be ""
                 new_name = self._construct_new_anime_filename(
-                    series_name=series_name,
+                    series_name=final_series_name,
                     episode_num=episode_num,
                     file_ext=file_ext,
                     season=season_override,
@@ -304,8 +313,13 @@ class AnimeHandler(BaseHandler):
                 new_filepath = os.path.join(os.path.dirname(current_filepath), new_name)
                 super()._perform_rename_operation(current_filepath, new_filepath)
             else:
+                missing_parts = []
+                if not final_series_name:
+                    missing_parts.append("series name")
+                if episode_num is None:
+                    missing_parts.append("episode number")
                 print(
-                    f"Skipping: {original_filename} (could not extract essential info for renaming)"
+                    f"Skipping: {original_filename} (could not determine {', '.join(missing_parts)} for renaming)"
                 )
         except Exception as e:
             print(
@@ -317,6 +331,7 @@ class AnimeHandler(BaseHandler):
         self,
         files_to_process: List[str],
         default_season_from_args: int,
+        series_title_override: Optional[str] = None,
         episode_data: Optional[Dict[Tuple[str, int, int], str]] = None,
     ):
         """
@@ -325,6 +340,7 @@ class AnimeHandler(BaseHandler):
         Args:
             files_to_process: List of filenames (basenames) to process.
             default_season_from_args: Default season number from CLI args.
+            series_title_override: Optional series title to use for all files.
             episode_data: Optional dictionary of episode titles.
         """
         for original_filename in files_to_process:
@@ -351,6 +367,7 @@ class AnimeHandler(BaseHandler):
                 original_filename,
                 season_override=effective_season,
                 episode_title=episode_title,
+                series_title_override=series_title_override,
             )
 
     def handle(self) -> None:
@@ -380,8 +397,13 @@ class AnimeHandler(BaseHandler):
             # TODO: Implement online data fetching logic
             pass
 
+        series_title_from_args = None
+        if hasattr(self.args, "title") and self.args.title:
+            series_title_from_args = self.args.title
+
         self._process_anime_files(
             self.target_files,
             default_season_from_args=self.args.season,
+            series_title_override=series_title_from_args,
             episode_data=episode_data,
         )
