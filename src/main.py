@@ -34,14 +34,17 @@ def parse_arguments():
     )
 
     # Subcommand: anime
-    anime_parser = subparsers.add_parser("anime", help="Standardize anime file names")
+    anime_parser = subparsers.add_parser("anime", help="Standardize anime file names.")
     arg.add_common_arguments(anime_parser)
     anime_parser.add_argument(
         "-s",
         "--season",
         type=int,
         default=0,
-        help="Season number to include in the filename",
+        help="Season number to include in the filename.",
+    )
+    anime_parser.add_argument(
+        "--title", type=str, help="Override the series title for all matched files."
     )
     anime_parser.add_argument(
         "-c",
@@ -51,20 +54,20 @@ def parse_arguments():
     )
 
     # Subcommand: movie
-    movie_parser = subparsers.add_parser("movie", help="Standardize movie file names")
+    movie_parser = subparsers.add_parser("movie", help="Standardize movie file names.")
     arg.add_common_arguments(movie_parser)
 
     # Subcommand: book
-    book_parser = subparsers.add_parser("book", help="Standardize book file names")
+    book_parser = subparsers.add_parser("book", help="Standardize book file names.")
     arg.add_common_arguments(book_parser)
 
     # Subcommand: std
     std_parser = subparsers.add_parser(
-        "std", help="Standardize file names within a directory"
+        "std", help="Standardize file names within a directory."
     )
     arg.add_common_arguments(std_parser, has_online=False)
     std_parser.add_argument(
-        "--creative", action="store_true", help="Generate random names"
+        "--creative", action="store_true", help="Generate random names."
     )
 
     args = parser.parse_args()
