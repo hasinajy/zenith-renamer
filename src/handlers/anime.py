@@ -1,11 +1,19 @@
 import argparse
 import os
 import json  # Added for config file loading
+import csv  # Added for CSV reading
 import re
 import sys
 from typing import Any, List, Dict, Optional, Tuple
 
 from .base_handler import BaseHandler
+
+try:
+    from .jikan_client import JikanFetcher, sanitize_filename
+except ImportError:
+    JikanFetcher = None  # type: ignore
+    sanitize_filename = None  # type: ignore
+
 
 SUBTITLE_EXTENSIONS: Tuple[str, ...] = (
     ".srt",
@@ -183,12 +191,15 @@ class AnimeHandler(BaseHandler):
         Processes a regex match object based on its associated configuration.
 
         Args:
-            config: Pattern configuration.
-            match: A re.Match object.
-            file_ext: The file extension.
+            config: The specific pattern configuration dictionary from
+                    `EPISODE_PATTERNS_CONFIG` (or custom loaded patterns)
+                    that yielded the match.
+            match: The `re.Match` object resulting from a successful pattern search.
+            file_ext: The file extension of the processed file (e.g., ".mkv").
 
         Returns:
-            Tuple of (series_name, season_num, episode_num, file_ext).
+            A tuple containing: (series_name, season_num, episode_num, file_ext).
+            Each of series_name, season_num, episode_num can be None if not found.
         """
         series_name = (
             match.group(config["groups"].get("series_name")).strip()
@@ -224,8 +235,9 @@ class AnimeHandler(BaseHandler):
             filename: The name of the file.
 
         Returns:
-            Tuple of (series_name, season_num, episode_num, file_ext).
-            Returns (None, None, None, file_ext) if no pattern matches.
+            A tuple containing: (series_name, season_num, episode_num, file_ext).
+            Series name, season number, or episode number will be None if not found.
+            Returns (None, None, None, file_ext) if no configured pattern matches.
         """
         _, file_ext = os.path.splitext(filename)
         for config_item in self.episode_patterns_config:
@@ -250,13 +262,16 @@ class AnimeHandler(BaseHandler):
             series_name: Name of the anime series.
             episode_num: Episode number.
             file_ext: File extension.
-            season: Season number (optional).
-            episode_title: Episode title (optional).
+            season: Optional season number. If 0 or None, it's omitted from the filename.
+            episode_title: Optional episode title. Invalid filename characters
+                           (e.g., <, >, :, ", /, \\, |, ?, *) will be removed.
 
         Returns:
             The new standardized filename.
         """
-        season_str = f"S{season:02d}" if season is not None and season != 0 else None
+        season_str = (
+            f"S{season:02d}" if season is not None and season != 0 else None
+        )  # Season 0 is often treated as not having a season prefix
         episode_num_str = f"E{episode_num:02d}"
 
         name_parts = [series_name.strip()]  # Ensure series name is stripped
@@ -264,6 +279,7 @@ class AnimeHandler(BaseHandler):
             name_parts.append(season_str)
         name_parts.append(episode_num_str)
         if episode_title:
+            # Sanitize episode title by removing characters invalid in filenames
             sanitized_title = re.sub(r'[<>:"/\\|?*]', "", episode_title.strip())
             if sanitized_title:
                 name_parts.append(sanitized_title)
@@ -284,9 +300,10 @@ class AnimeHandler(BaseHandler):
         Args:
             current_filepath: Full current path to the file.
             original_filename: Original filename (basename).
-            season_override: Season number to use in the new filename.
-            episode_title: Optional episode title.
-            series_title_override: Optional series title to use instead of extracted one.
+            season_override: Effective season number to use in the new filename.
+            episode_title: Optional episode title for the new filename.
+            series_title_override: Optional series title to use, overriding any
+                                   extracted series title from the filename.
         """
         try:
             extracted_series_name, _, episode_num, file_ext = self._extract_anime_info(
@@ -327,27 +344,89 @@ class AnimeHandler(BaseHandler):
                 file=sys.stderr,
             )
 
+    def _load_episode_titles_from_csv(
+        self, csv_filepath: str
+    ) -> Optional[Dict[int, str]]:
+        """
+        Loads episode titles from a Jikan-generated CSV file.
+        The CSV is expected to have 'Episode MAL ID' and 'Episode Title' columns.
+
+        Args:
+            csv_filepath: Path to the CSV file.
+
+        Returns:
+            A dictionary mapping episode number (integer, from 'Episode MAL ID')
+            to episode title (string), or None if the file cannot be read,
+            is improperly formatted, or contains no valid entries.
+        """
+        episode_titles: Dict[int, str] = {}
+        try:
+            with open(csv_filepath, "r", newline="", encoding="utf-8") as csvfile:
+                reader = csv.DictReader(csvfile)
+                if (
+                    "Episode MAL ID" not in reader.fieldnames
+                    or "Episode Title" not in reader.fieldnames
+                ):
+                    print(
+                        f"Error: CSV file '{csv_filepath}' is missing required columns ('Episode MAL ID', 'Episode Title').",
+                        file=sys.stderr,
+                    )
+                    return None
+
+                for i, row in enumerate(reader):
+                    try:
+                        episode_mal_id_str = row.get("Episode MAL ID")
+                        episode_title = row.get("Episode Title")
+
+                        if episode_mal_id_str is None or episode_title is None:
+                            print(
+                                f"Warning: Skipping row {i+2} in '{csv_filepath}' due to missing MAL ID or Title.",
+                                file=sys.stderr,
+                            )
+                            continue
+
+                        episode_num = int(episode_mal_id_str)
+                        episode_titles[episode_num] = episode_title
+                    except ValueError:
+                        print(
+                            f"Warning: Invalid episode number '{row.get('Episode MAL ID')}' in '{csv_filepath}' at row {i+2}. Skipping.",
+                            file=sys.stderr,
+                        )
+                        continue
+            return episode_titles if episode_titles else None
+        except FileNotFoundError:
+            # This case should ideally be caught before calling this function, but good to have.
+            print(f"Error: CSV file '{csv_filepath}' not found.", file=sys.stderr)
+            return None
+        except (csv.Error, IOError) as e:
+            print(
+                f"Error reading or parsing CSV file '{csv_filepath}': {e}",
+                file=sys.stderr,
+            )
+            return None
+
     def _process_anime_files(
         self,
         files_to_process: List[str],
         default_season_from_args: int,
         series_title_override: Optional[str] = None,
-        episode_data: Optional[Dict[Tuple[str, int, int], str]] = None,
+        episode_data: Optional[Dict[int, str]] = None,
     ):
         """
         Processes a list of anime files, attempting to rename them.
 
         Args:
             files_to_process: List of filenames (basenames) to process.
-            default_season_from_args: Default season number from CLI args.
+            default_season_from_args: Default season number from CLI args, used if
+                                      season cannot be extracted from filename.
             series_title_override: Optional series title to use for all files.
-            episode_data: Optional dictionary of episode titles.
+            episode_data: Optional dictionary mapping episode number to episode title.
         """
         for original_filename in files_to_process:
             current_filepath = os.path.join(self.base_dir, original_filename)
 
-            series_name, season_from_file, episode_num, _ = self._extract_anime_info(
-                original_filename
+            _series_name_from_file, season_from_file, episode_num, _ = (
+                self._extract_anime_info(original_filename)
             )
 
             effective_season = (
@@ -357,10 +436,8 @@ class AnimeHandler(BaseHandler):
             )
 
             episode_title = None
-            if series_name and episode_num is not None and episode_data:
-                episode_title = episode_data.get(
-                    (series_name, effective_season, episode_num)
-                )
+            if episode_num is not None and episode_data:
+                episode_title = episode_data.get(episode_num)
 
             self._rename_anime_file(
                 current_filepath,
@@ -370,6 +447,141 @@ class AnimeHandler(BaseHandler):
                 series_title_override=series_title_override,
             )
 
+    def _initialize_target_files(self) -> bool:
+        """Initializes target files if not already set and a directory is provided.
+
+        Returns:
+            True if target files are set (either from a single file argument or by
+            finding relevant files in a directory), or if files were already initialized.
+            False if a directory was provided but no relevant files were found.
+        """
+        if (
+            not self.target_files and self.args.directory
+        ):  # Only list if directory is given and files not set by --file
+            self.target_files = super()._list_files_in_directory(
+                self.args.directory, self.relevant_media_extensions
+            )
+            if not self.target_files:
+                print(
+                    f"No relevant anime files found in directory '{self.args.directory}'."
+                )
+                return False
+        return True
+
+    def _determine_series_title_for_jikan(self) -> Optional[str]:
+        """
+        Determines the series title to be used for Jikan search and as an override for renaming.
+        Priority: --title CLI arg, then inferred from filenames if --online is active.
+
+        Returns:
+            The series title string if specified or successfully inferred, otherwise None.
+        """
+        if hasattr(self.args, "title") and self.args.title:
+            return self.args.title
+
+        if self.args.online and self.target_files:
+            print(
+                "No --title provided for online search, attempting to infer from filenames..."
+            )
+            for filename in self.target_files:
+                extracted_name, _, _, _ = self._extract_anime_info(filename)
+                if extracted_name:
+                    print(
+                        f"Using inferred series title '{extracted_name}' for Jikan search. For best results, provide --title."
+                    )
+                    return extracted_name
+        return None
+
+    def _fetch_online_data_if_needed(
+        self, series_title_for_jikan: Optional[str]
+    ) -> None:
+        """
+        Fetches anime data (ID and episodes) from Jikan API and saves it to a CSV.
+        This occurs if online mode is enabled and a series title is available.
+
+        Args:
+            series_title_for_jikan: The series title to use for the Jikan API search.
+        """
+        if not self.args.online or not series_title_for_jikan:
+            if self.args.online and not series_title_for_jikan:
+                print(
+                    "Skipping online data fetching: No series title specified via --title and could not infer from filenames."
+                )
+            return
+
+        print("Online mode enabled: Attempting to fetch data from Jikan API...")
+        if JikanFetcher is None:
+            print(
+                "Error: JikanFetcher is not available. Cannot perform online fetch. Is jikanpy-v4 installed?",
+                file=sys.stderr,
+            )
+            return
+
+        try:
+            fetcher = JikanFetcher()
+            csv_file_path = fetcher.fetch_and_save_anime_data_to_csv(
+                series_title_for_jikan, self.base_dir
+            )
+            if csv_file_path:
+                print(
+                    f"Jikan API data for '{series_title_for_jikan}' saved to: {csv_file_path}"
+                )
+            else:
+                print(
+                    f"Failed to fetch or save anime data for '{series_title_for_jikan}' from Jikan API."
+                )
+        except ImportError:
+            print(
+                "Error: Jikan library import failed. Cannot use --online features.",
+                file=sys.stderr,
+            )
+
+    def _load_episode_data_from_csv_if_available(
+        self, series_title_for_csv: Optional[str]
+    ) -> Optional[Dict[int, str]]:
+        """
+        Loads episode titles from a Jikan-generated CSV file if it exists.
+        The CSV filename is expected to be based on the sanitized series title.
+
+        Args:
+            series_title_for_csv: The series title used to locate the corresponding CSV.
+
+        Returns:
+            A dictionary mapping episode number (int) to episode title (str) if the CSV
+            is found and successfully parsed, otherwise None.
+        """
+        if not series_title_for_csv or sanitize_filename is None:
+            if (
+                series_title_for_csv and sanitize_filename is None
+            ):  # only print warning if title was there but util is not
+                print(
+                    "Warning: sanitize_filename utility not available (jikan_client import issue?). Cannot reliably locate Jikan CSV for episode titles.",
+                    file=sys.stderr,
+                )
+            return None
+
+        sanitized_title_for_csv = sanitize_filename(series_title_for_csv)
+        csv_filename = f"{sanitized_title_for_csv}_episodes_jikan.csv"
+        csv_filepath = os.path.join(self.base_dir, csv_filename)
+
+        if os.path.exists(csv_filepath):
+            print(f"Attempting to load episode titles from '{csv_filepath}'...")
+            loaded_data = self._load_episode_titles_from_csv(csv_filepath)
+            if loaded_data:
+                print(
+                    f"Successfully loaded {len(loaded_data)} episode titles from CSV for renaming."
+                )
+            else:
+                print(
+                    f"Could not load episode titles from '{csv_filepath}' or CSV was empty/invalid."
+                )
+            return loaded_data
+        else:
+            print(
+                f"Jikan data CSV '{csv_filepath}' not found. Proceeding without episode titles from CSV."
+            )
+        return None
+
     def handle(self) -> None:
         """
         Main method to handle the anime renaming process.
@@ -378,32 +590,24 @@ class AnimeHandler(BaseHandler):
         print("Processing anime files...")
         print(f"Online mode: {self.args.online}")
 
-        if not self.target_files and self.args.directory:
-            self.target_files = super()._list_files_in_directory(
-                self.args.directory, self.relevant_media_extensions
-            )
-            if not self.target_files:
-                print(
-                    f"No relevant anime files found in directory '{self.args.directory}'."
-                )
-                return
+        if not self._initialize_target_files():
+            return  # No files to process
 
         if not self.target_files:
             print("No files to process for anime command.", file=sys.stderr)
             return
 
-        episode_data: Optional[Dict[Tuple[str, int, int], str]] = None
-        if self.args.online:
-            # TODO: Implement online data fetching logic
-            pass
+        series_title_for_processing = self._determine_series_title_for_jikan()
 
-        series_title_from_args = None
-        if hasattr(self.args, "title") and self.args.title:
-            series_title_from_args = self.args.title
+        self._fetch_online_data_if_needed(series_title_for_processing)
+
+        loaded_episode_data = self._load_episode_data_from_csv_if_available(
+            series_title_for_processing
+        )
 
         self._process_anime_files(
             self.target_files,
             default_season_from_args=self.args.season,
-            series_title_override=series_title_from_args,
-            episode_data=episode_data,
+            series_title_override=series_title_for_processing,
+            episode_data=loaded_episode_data,
         )
