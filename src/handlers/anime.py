@@ -7,6 +7,12 @@ from typing import Any, List, Dict, Optional, Tuple
 
 from .base_handler import BaseHandler
 
+try:
+    from .jikan_client import JikanFetcher
+except ImportError:
+    JikanFetcher = None  # type: ignore
+
+
 SUBTITLE_EXTENSIONS: Tuple[str, ...] = (
     ".srt",
     ".vtt",
@@ -392,18 +398,69 @@ class AnimeHandler(BaseHandler):
             print("No files to process for anime command.", file=sys.stderr)
             return
 
-        episode_data: Optional[Dict[Tuple[str, int, int], str]] = None
-        if self.args.online:
-            # TODO: Implement online data fetching logic
-            pass
+        # This will hold episode titles if loaded, e.g., from a future CSV parsing step.
+        # For now, it remains unused by Jikan data for renaming.
+        loaded_episode_data: Optional[Dict[Tuple[str, int, int], str]] = None
 
-        series_title_from_args = None
+        # Determine the series title: from --title arg first, then potentially inferred.
+        series_title_for_jikan_and_override = None
         if hasattr(self.args, "title") and self.args.title:
-            series_title_from_args = self.args.title
+            series_title_for_jikan_and_override = self.args.title
+
+        if self.args.online:
+            print("Online mode enabled: Attempting to fetch data from Jikan API...")
+            if JikanFetcher is None:
+                print(
+                    "Error: JikanFetcher is not available. Cannot perform online fetch. Is jikanpy-v4 installed?",
+                    file=sys.stderr,
+                )
+            else:
+                if not series_title_for_jikan_and_override and self.target_files:
+                    # Try to infer series title from the first parsable filename if --title not given
+                    print(
+                        "No --title provided for online search, attempting to infer from filenames..."
+                    )
+                    for filename in self.target_files:
+                        extracted_name, _, _, _ = self._extract_anime_info(filename)
+                        if extracted_name:
+                            series_title_for_jikan_and_override = extracted_name
+                            print(
+                                f"Using inferred series title '{series_title_for_jikan_and_override}' for Jikan search. For best results, provide --title."
+                            )
+                            break
+
+                if series_title_for_jikan_and_override:
+                    try:
+                        fetcher = JikanFetcher()
+                        csv_file_path = fetcher.fetch_and_save_anime_data_to_csv(
+                            series_title_for_jikan_and_override, self.base_dir
+                        )
+                        if csv_file_path:
+                            print(
+                                f"Jikan API data for '{series_title_for_jikan_and_override}' saved to: {csv_file_path}"
+                            )
+                            print(
+                                "Note: This data is not yet used for renaming in the current operation."
+                            )
+                        else:
+                            print(
+                                f"Failed to fetch or save anime data for '{series_title_for_jikan_and_override}' from Jikan API."
+                            )
+                    except (
+                        ImportError
+                    ):  # Should be caught by JikanFetcher is None check, but as a safeguard
+                        print(
+                            "Error: Jikan library import failed. Cannot use --online features.",
+                            file=sys.stderr,
+                        )
+                else:
+                    print(
+                        "Skipping online data fetching: No series title specified via --title and could not infer from filenames."
+                    )
 
         self._process_anime_files(
             self.target_files,
             default_season_from_args=self.args.season,
-            series_title_override=series_title_from_args,
-            episode_data=episode_data,
+            series_title_override=series_title_for_jikan_and_override,  # Use the same title for override if set
+            episode_data=loaded_episode_data,  # This is not populated from Jikan CSV yet
         )
