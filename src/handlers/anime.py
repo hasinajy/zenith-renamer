@@ -79,6 +79,63 @@ class AnimeHandler(BaseHandler):
             self.video_extensions + self.subtitle_extensions
         )
 
+    def _set_video_extensions(self, extensions_value: Any, config_path: str) -> None:
+        """
+        Sets video extensions from a configuration value.
+
+        Args:
+            extensions_value: The value from the configuration file.
+            config_path: Path to the JSON configuration file (for logging).
+        """
+        if isinstance(extensions_value, list) and all(
+            isinstance(ext, str) for ext in extensions_value
+        ):
+            self.video_extensions = tuple(extensions_value)
+            print(f"  Loaded custom video extensions: {self.video_extensions}")
+        else:
+            print(
+                f"  Warning: 'video_extensions' in '{config_path}' is not a list of strings. Using defaults.",
+                file=sys.stderr,
+            )
+
+    def _set_subtitle_extensions(self, extensions_value: Any, config_path: str) -> None:
+        """
+        Sets subtitle extensions from a configuration value.
+
+        Args:
+            extensions_value: The value from the configuration file.
+            config_path: Path to the JSON configuration file (for logging).
+        """
+        if isinstance(extensions_value, list) and all(
+            isinstance(ext, str) for ext in extensions_value
+        ):
+            self.subtitle_extensions = tuple(extensions_value)
+            print(f"  Loaded custom subtitle extensions: {self.subtitle_extensions}")
+        else:
+            print(
+                f"  Warning: 'subtitle_extensions' in '{config_path}' is not a list of strings. Using defaults.",
+                file=sys.stderr,
+            )
+
+    def _set_episode_patterns(self, patterns_value: Any, config_path: str) -> None:
+        """
+        Sets episode patterns from a configuration value.
+
+        Args:
+            patterns_value: The value from the configuration file.
+            config_path: Path to the JSON configuration file (for logging).
+        """
+        if isinstance(patterns_value, list):
+            self.episode_patterns_config = patterns_value
+            print(
+                f"  Loaded {len(self.episode_patterns_config)} custom episode patterns."
+            )
+        else:
+            print(
+                f"  Warning: 'episode_patterns' in '{config_path}' is not a list. Using defaults.",
+                file=sys.stderr,
+            )
+
     def _load_external_config(self, config_path: str) -> None:
         """
         Loads configuration from a JSON file.
@@ -93,43 +150,15 @@ class AnimeHandler(BaseHandler):
             print(f"Successfully loaded configuration from '{config_path}'.")
 
             if "video_extensions" in config_data:
-                if isinstance(config_data["video_extensions"], list) and all(
-                    isinstance(ext, str) for ext in config_data["video_extensions"]
-                ):
-                    self.video_extensions = tuple(config_data["video_extensions"])
-                    print(f"  Loaded custom video extensions: {self.video_extensions}")
-                else:
-                    print(
-                        f"  Warning: 'video_extensions' in '{config_path}' is not a list of strings. Using defaults.",
-                        file=sys.stderr,
-                    )
+                self._set_video_extensions(config_data["video_extensions"], config_path)
 
             if "subtitle_extensions" in config_data:
-                if isinstance(config_data["subtitle_extensions"], list) and all(
-                    isinstance(ext, str) for ext in config_data["subtitle_extensions"]
-                ):
-                    self.subtitle_extensions = tuple(config_data["subtitle_extensions"])
-                    print(
-                        f"  Loaded custom subtitle extensions: {self.subtitle_extensions}"
-                    )
-                else:
-                    print(
-                        f"  Warning: 'subtitle_extensions' in '{config_path}' is not a list of strings. Using defaults.",
-                        file=sys.stderr,
-                    )
+                self._set_subtitle_extensions(
+                    config_data["subtitle_extensions"], config_path
+                )
 
             if "episode_patterns" in config_data:
-                if isinstance(config_data["episode_patterns"], list):
-                    # Add more robust validation for pattern structure if needed
-                    self.episode_patterns_config = config_data["episode_patterns"]
-                    print(
-                        f"  Loaded {len(self.episode_patterns_config)} custom episode patterns."
-                    )
-                else:
-                    print(
-                        f"  Warning: 'episode_patterns' in '{config_path}' is not a list. Using defaults.",
-                        file=sys.stderr,
-                    )
+                self._set_episode_patterns(config_data["episode_patterns"], config_path)
 
         except FileNotFoundError:
             print(
