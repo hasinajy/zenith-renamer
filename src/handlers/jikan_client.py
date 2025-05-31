@@ -48,7 +48,17 @@ class JikanFetcher:
         self.ratelimit_sleep = ratelimit_sleep  # Jikan API has rate limits
 
     def _make_api_call(self, api_call_func, *args, **kwargs):
-        """Wrapper for Jikan API calls with rate limiting and error handling."""
+        """
+        Wrapper for Jikan API calls with rate limiting and error handling.
+
+        Args:
+            api_call_func: The Jikan API function to call (e.g., `self.jikan.search`).
+            *args: Positional arguments for `api_call_func`.
+            **kwargs: Keyword arguments for `api_call_func`.
+
+        Returns:
+            The API response data, or None if an error occurs.
+        """
         try:
             time.sleep(self.ratelimit_sleep)  # Respect rate limits
             return api_call_func(*args, **kwargs)
@@ -67,7 +77,8 @@ class JikanFetcher:
             series_title: The title of the anime series to search for.
 
         Returns:
-            The MyAnimeList ID (mal_id) of the first search result, or None if not found or an error occurs.
+            The MyAnimeList ID (mal_id) of the first search result as an integer,
+            or None if not found or an error occurs.
         """
         print(f"Searching for anime ID for '{series_title}'...")
         search_results = self._make_api_call(
@@ -95,8 +106,8 @@ class JikanFetcher:
             anime_id: The MyAnimeList ID of the anime.
 
         Returns:
-            A list of dictionaries, where each dictionary contains details of an episode.
-            Returns an empty list if no episodes are found or an error occurs.
+            A list of episode data dictionaries. Returns an empty list if no
+            episodes are found or an error occurs.
         """
         print(f"Fetching all episodes for anime ID: {anime_id}...")
         episodes_data = self._make_api_call(self.jikan.anime, id=anime_id, extension="episodes")  # type: ignore
@@ -116,7 +127,17 @@ class JikanFetcher:
         episodes: List[Dict[str, Any]],
         output_dir: str,
     ) -> Optional[str]:
-        """Saves episode data to a CSV file."""
+        """
+        Saves episode data to a CSV file.
+
+        Args:
+            series_title_for_filename: The series title, used to generate the CSV filename.
+            episodes: A list of episode data dictionaries.
+            output_dir: The directory where the CSV file will be saved.
+
+        Returns:
+            The full path to the saved CSV file, or None if an error occurred or no data was provided.
+        """
         if not episodes:
             print("No episode data to save.")
             return None
@@ -160,7 +181,16 @@ class JikanFetcher:
     def fetch_and_save_anime_data_to_csv(
         self, series_title: str, output_dir: str
     ) -> Optional[str]:
-        """Fetches anime ID, then all its episodes, and saves them to a CSV file."""
+        """
+        Fetches an anime's MyAnimeList ID, then all its episodes, and saves them to a CSV file.
+
+        Args:
+            series_title: The title of the anime series.
+            output_dir: The directory where the CSV file will be saved.
+
+        Returns:
+            The path to the saved CSV file, or None if any step in the process fails.
+        """
         anime_id = self.search_anime_id(series_title)
         if anime_id is None:
             return None
