@@ -1,5 +1,6 @@
 import argparse
 import os
+from typing import Optional  # Ensure Optional is imported if not already
 
 
 def add_common_arguments(parser: argparse.ArgumentParser, has_online: bool = True):
@@ -26,6 +27,39 @@ def add_common_arguments(parser: argparse.ArgumentParser, has_online: bool = Tru
         )
 
 
+def _validate_path(
+    path_str: str,
+    path_description: str,
+    must_be_dir: bool = False,
+    must_be_file: bool = False,
+):
+    """
+    Validates a given path string for existence and optionally for type.
+
+    Args:
+        path_str: The path string to validate.
+        path_description: A human-readable description for error messages (e.g., "directory", "file").
+        must_be_dir: If True, checks if the path is a directory.
+        must_be_file: If True, checks if the path is a file.
+
+    Raises:
+        argparse.ArgumentError: If validation fails.
+    """
+    if not os.path.exists(path_str):
+        raise argparse.ArgumentError(
+            None, f"The provided {path_description} path does not exist: '{path_str}'"
+        )
+    if must_be_dir and not os.path.isdir(path_str):
+        raise argparse.ArgumentError(
+            None,
+            f"The provided {path_description} path is not a directory: '{path_str}'",
+        )
+    if must_be_file and not os.path.isfile(path_str):
+        raise argparse.ArgumentError(
+            None, f"The provided {path_description} path is not a file: '{path_str}'"
+        )
+
+
 def handle_invalid_arguments(args: argparse.Namespace):
     """
     Validates the combination and existence of provided command-line arguments.
@@ -41,44 +75,19 @@ def handle_invalid_arguments(args: argparse.Namespace):
     Raises:
         argparse.ArgumentError: If any invalid argument combination or path issue is found.
     """
-    is_directory_provided = args.directory
-    is_file_provided = args.file
-
-    if is_directory_provided and is_file_provided:
+    if args.directory and args.file:
         raise argparse.ArgumentError(
             None, "Cannot specify both --file and --directory; please choose one."
         )
 
     # Validate directory if provided
-    if is_directory_provided:
-        if not os.path.exists(args.directory):
-            raise argparse.ArgumentError(
-                None, f"The provided directory path does not exist: '{args.directory}'"
-            )
-        if not os.path.isdir(args.directory):
-            raise argparse.ArgumentError(
-                None, f"The provided path is not a directory: '{args.directory}'"
-            )
+    if args.directory:
+        _validate_path(args.directory, "directory", must_be_dir=True)
 
     # Validate file if provided
-    if is_file_provided:
-        if not os.path.exists(args.file):
-            raise argparse.ArgumentError(
-                None, f"The provided file path does not exist: '{args.file}'"
-            )
-        if not os.path.isfile(args.file):
-            raise argparse.ArgumentError(
-                None, f"The provided path is not a file: '{args.file}'"
-            )
+    if args.file:
+        _validate_path(args.file, "file", must_be_file=True)
 
-    # Validate config file if provided (currently specific to commands that support it, like 'anime')
+    # Validate config file if provided
     if hasattr(args, "config") and args.config:
-        if not os.path.exists(args.config):
-            raise argparse.ArgumentError(
-                None,
-                f"The provided configuration file path does not exist: '{args.config}'",
-            )
-        if not os.path.isfile(args.config):
-            raise argparse.ArgumentError(
-                None, f"The provided configuration path is not a file: '{args.config}'"
-            )
+        _validate_path(args.config, "configuration file", must_be_file=True)
