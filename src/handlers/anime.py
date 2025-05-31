@@ -1,5 +1,6 @@
 import argparse
 import os
+import json  # Added for config file loading
 import re
 import sys
 from typing import Any, List, Dict, Optional, Tuple
@@ -12,8 +13,12 @@ SUBTITLE_EXTENSIONS: Tuple[str, ...] = (
     ".ass",
     ".sub",
 )
-VIDEO_EXTENSIONS: Tuple[str, ...] = (".mp4", ".mkv", ".ts", ".avi")
-RELEVANT_MEDIA_EXTENSIONS: Tuple[str, ...] = VIDEO_EXTENSIONS + SUBTITLE_EXTENSIONS
+VIDEO_EXTENSIONS: Tuple[str, ...] = (
+    ".mp4",
+    ".mkv",
+    ".ts",
+    ".avi",
+)  # Default video extensions
 
 EPISODE_PATTERNS_CONFIG = [
     # Example: "Watch Raise wa Tanin ga Ii 1st Season Episode 01 English Subbed at Site Name"
@@ -58,8 +63,118 @@ class AnimeHandler(BaseHandler):
 
     def __init__(self, args: argparse.Namespace):
         super().__init__(args)
-        self.episode_patterns_config = EPISODE_PATTERNS_CONFIG
-        self.relevant_media_extensions = RELEVANT_MEDIA_EXTENSIONS
+        # Initialize with default configurations
+        self.subtitle_extensions: Tuple[str, ...] = SUBTITLE_EXTENSIONS
+        self.video_extensions: Tuple[str, ...] = VIDEO_EXTENSIONS
+        self.episode_patterns_config: List[Dict[str, Any]] = list(
+            EPISODE_PATTERNS_CONFIG
+        )  # Use a copy
+
+        # Load external config if provided by the user
+        if hasattr(args, "config") and args.config:
+            self._load_external_config(args.config)
+
+        # Combine extensions to determine relevant media files
+        self.relevant_media_extensions: Tuple[str, ...] = (
+            self.video_extensions + self.subtitle_extensions
+        )
+
+    def _set_video_extensions(self, extensions_value: Any, config_path: str) -> None:
+        """
+        Sets video extensions from a configuration value.
+
+        Args:
+            extensions_value: The value from the configuration file.
+            config_path: Path to the JSON configuration file (for logging).
+        """
+        if isinstance(extensions_value, list) and all(
+            isinstance(ext, str) for ext in extensions_value
+        ):
+            self.video_extensions = tuple(extensions_value)
+            print(f"  Loaded custom video extensions: {self.video_extensions}")
+        else:
+            print(
+                f"  Warning: 'video_extensions' in '{config_path}' is not a list of strings. Using defaults.",
+                file=sys.stderr,
+            )
+
+    def _set_subtitle_extensions(self, extensions_value: Any, config_path: str) -> None:
+        """
+        Sets subtitle extensions from a configuration value.
+
+        Args:
+            extensions_value: The value from the configuration file.
+            config_path: Path to the JSON configuration file (for logging).
+        """
+        if isinstance(extensions_value, list) and all(
+            isinstance(ext, str) for ext in extensions_value
+        ):
+            self.subtitle_extensions = tuple(extensions_value)
+            print(f"  Loaded custom subtitle extensions: {self.subtitle_extensions}")
+        else:
+            print(
+                f"  Warning: 'subtitle_extensions' in '{config_path}' is not a list of strings. Using defaults.",
+                file=sys.stderr,
+            )
+
+    def _set_episode_patterns(self, patterns_value: Any, config_path: str) -> None:
+        """
+        Sets episode patterns from a configuration value.
+
+        Args:
+            patterns_value: The value from the configuration file.
+            config_path: Path to the JSON configuration file (for logging).
+        """
+        if isinstance(patterns_value, list):
+            self.episode_patterns_config = patterns_value
+            print(
+                f"  Loaded {len(self.episode_patterns_config)} custom episode patterns."
+            )
+        else:
+            print(
+                f"  Warning: 'episode_patterns' in '{config_path}' is not a list. Using defaults.",
+                file=sys.stderr,
+            )
+
+    def _load_external_config(self, config_path: str) -> None:
+        """
+        Loads configuration from a JSON file.
+        Overrides default extensions and patterns if specified in the config.
+
+        Args:
+            config_path: Path to the JSON configuration file.
+        """
+        try:
+            with open(config_path, "r") as f:
+                config_data = json.load(f)
+            print(f"Successfully loaded configuration from '{config_path}'.")
+
+            if "video_extensions" in config_data:
+                self._set_video_extensions(config_data["video_extensions"], config_path)
+
+            if "subtitle_extensions" in config_data:
+                self._set_subtitle_extensions(
+                    config_data["subtitle_extensions"], config_path
+                )
+
+            if "episode_patterns" in config_data:
+                self._set_episode_patterns(config_data["episode_patterns"], config_path)
+
+        except FileNotFoundError:
+            print(
+                f"Warning: Configuration file '{config_path}' not found. Using default configurations.",
+                file=sys.stderr,
+            )
+        except json.JSONDecodeError:
+            print(
+                f"Warning: Error decoding JSON from '{config_path}'. Using default configurations.",
+                file=sys.stderr,
+            )
+        except Exception as e:
+            print(
+                f"Warning: An unexpected error occurred while loading configuration from '{config_path}': {e}. Using default configurations.",
+                file=sys.stderr,
+            )
 
     def _process_match(
         self, config: Dict[str, Any], match: re.Match, file_ext: str

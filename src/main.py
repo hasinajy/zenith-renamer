@@ -43,6 +43,12 @@ def parse_arguments():
         default=0,
         help="Season number to include in the filename",
     )
+    anime_parser.add_argument(
+        "-c",
+        "--config",
+        type=str,
+        help="Path to an optional JSON configuration file for anime processing.",
+    )
 
     # Subcommand: movie
     movie_parser = subparsers.add_parser("movie", help="Standardize movie file names")
