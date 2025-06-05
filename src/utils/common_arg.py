@@ -1,30 +1,5 @@
 import argparse
 import os
-from typing import Optional  # Ensure Optional is imported if not already
-
-
-def add_common_arguments(parser: argparse.ArgumentParser, has_online: bool = True):
-    """
-    Adds shared command-line arguments to an argparse parser.
-
-    These arguments typically include options for specifying input paths
-    (either a directory or a single file) and an optional online mode.
-
-    Args:
-        parser: The argparse.ArgumentParser or subparser object to which
-                the arguments will be added.
-        has_online: A boolean flag. If True, the '--online' argument
-                    is added, allowing fetching data from an API.
-    """
-    parser.add_argument("-f", "--file", help="Path to an individual file")
-    parser.add_argument(
-        "-d", "--directory", help="Path to the directory containing files"
-    )
-
-    if has_online:
-        parser.add_argument(
-            "--online", action="store_true", help="Fetch data from an API"
-        )
 
 
 def _validate_path(
@@ -57,6 +32,30 @@ def _validate_path(
     if must_be_file and not os.path.isfile(path_str):
         raise argparse.ArgumentError(
             None, f"The provided {path_description} path is not a file: '{path_str}'"
+        )
+
+
+def add_common_arguments(parser: argparse.ArgumentParser, has_online: bool = True):
+    """
+    Adds shared command-line arguments to an argparse parser.
+
+    These arguments typically include options for specifying input paths
+    (either a directory or a single file) and an optional online mode.
+
+    Args:
+        parser: The argparse.ArgumentParser or subparser object to which
+                the arguments will be added.
+        has_online: A boolean flag. If True, the '--online' argument
+                    is added, allowing fetching data from an API.
+    """
+    parser.add_argument("-f", "--file", help="Path to an individual file")
+    parser.add_argument(
+        "-d", "--directory", help="Path to the directory containing files"
+    )
+
+    if has_online:
+        parser.add_argument(
+            "--online", action="store_true", help="Fetch data from an API"
         )
 
 
