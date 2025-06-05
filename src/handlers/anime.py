@@ -87,6 +87,7 @@ class AnimeHandler(BaseHandler):
             self.video_extensions + self.subtitle_extensions
         )
 
+    # ----------------------- Configuration Loading Methods ---------------------- #
     def _set_video_extensions(self, extensions_value: Any, config_path: str) -> None:
         """
         Sets video extensions from a configuration value.
@@ -184,6 +185,7 @@ class AnimeHandler(BaseHandler):
                 file=sys.stderr,
             )
 
+    # ------------- Anime Information Extraction and Renaming Methods ------------ #
     def _process_match(
         self, config: Dict[str, Any], match: re.Match, file_ext: str
     ) -> Tuple[Optional[str], Optional[int], Optional[int], str]:
@@ -264,7 +266,7 @@ class AnimeHandler(BaseHandler):
             file_ext: File extension.
             season: Optional season number. If 0 or None, it's omitted from the filename.
             episode_title: Optional episode title. Invalid filename characters
-                           (e.g., <, >, :, ", /, \\, |, ?, *) will be removed.
+                            (e.g., <, >, :, ", /, \\, |, ?, *) will be removed.
 
         Returns:
             The new standardized filename.
@@ -344,6 +346,49 @@ class AnimeHandler(BaseHandler):
                 file=sys.stderr,
             )
 
+    def _process_anime_files(
+        self,
+        files_to_process: List[str],
+        default_season_from_args: int,
+        series_title_override: Optional[str] = None,
+        episode_data: Optional[Dict[int, str]] = None,
+    ):
+        """
+        Processes a list of anime files, attempting to rename them.
+
+        Args:
+            files_to_process: List of filenames (basenames) to process.
+            default_season_from_args: Default season number from CLI args, used if
+                                      season cannot be extracted from filename.
+            series_title_override: Optional series title to use for all files.
+            episode_data: Optional dictionary mapping episode number to episode title.
+        """
+        for original_filename in files_to_process:
+            current_filepath = os.path.join(self.base_dir, original_filename)
+
+            _series_name_from_file, season_from_file, episode_num, _ = (
+                self._extract_anime_info(original_filename)
+            )
+
+            effective_season = (
+                season_from_file
+                if season_from_file is not None
+                else default_season_from_args
+            )
+
+            episode_title = None
+            if episode_num is not None and episode_data:
+                episode_title = episode_data.get(episode_num)
+
+            self._rename_anime_file(
+                current_filepath,
+                original_filename,
+                season_override=effective_season,
+                episode_title=episode_title,
+                series_title_override=series_title_override,
+            )
+
+    # -------------------- Jikan API and CSV Handling Methods -------------------- #
     def _load_episode_titles_from_csv(
         self, csv_filepath: str
     ) -> Optional[Dict[int, str]]:
@@ -404,69 +449,6 @@ class AnimeHandler(BaseHandler):
                 file=sys.stderr,
             )
             return None
-
-    def _process_anime_files(
-        self,
-        files_to_process: List[str],
-        default_season_from_args: int,
-        series_title_override: Optional[str] = None,
-        episode_data: Optional[Dict[int, str]] = None,
-    ):
-        """
-        Processes a list of anime files, attempting to rename them.
-
-        Args:
-            files_to_process: List of filenames (basenames) to process.
-            default_season_from_args: Default season number from CLI args, used if
-                                      season cannot be extracted from filename.
-            series_title_override: Optional series title to use for all files.
-            episode_data: Optional dictionary mapping episode number to episode title.
-        """
-        for original_filename in files_to_process:
-            current_filepath = os.path.join(self.base_dir, original_filename)
-
-            _series_name_from_file, season_from_file, episode_num, _ = (
-                self._extract_anime_info(original_filename)
-            )
-
-            effective_season = (
-                season_from_file
-                if season_from_file is not None
-                else default_season_from_args
-            )
-
-            episode_title = None
-            if episode_num is not None and episode_data:
-                episode_title = episode_data.get(episode_num)
-
-            self._rename_anime_file(
-                current_filepath,
-                original_filename,
-                season_override=effective_season,
-                episode_title=episode_title,
-                series_title_override=series_title_override,
-            )
-
-    def _initialize_target_files(self) -> bool:
-        """Initializes target files if not already set and a directory is provided.
-
-        Returns:
-            True if target files are set (either from a single file argument or by
-            finding relevant files in a directory), or if files were already initialized.
-            False if a directory was provided but no relevant files were found.
-        """
-        if (
-            not self.target_files and self.args.directory
-        ):  # Only list if directory is given and files not set by --file
-            self.target_files = super()._list_files_in_directory(
-                self.args.directory, self.relevant_media_extensions
-            )
-            if not self.target_files:
-                print(
-                    f"No relevant anime files found in directory '{self.args.directory}'."
-                )
-                return False
-        return True
 
     def _determine_series_title_for_jikan(self) -> Optional[str]:
         """
@@ -581,6 +563,28 @@ class AnimeHandler(BaseHandler):
                 f"Jikan data CSV '{csv_filepath}' not found. Proceeding without episode titles from CSV."
             )
         return None
+
+    # ---------------------------- Main Handling Logic --------------------------- #
+    def _initialize_target_files(self) -> bool:
+        """Initializes target files if not already set and a directory is provided.
+
+        Returns:
+            True if target files are set (either from a single file argument or by
+            finding relevant files in a directory), or if files were already initialized.
+            False if a directory was provided but no relevant files were found.
+        """
+        if (
+            not self.target_files and self.args.directory
+        ):  # Only list if directory is given and files not set by --file
+            self.target_files = super()._list_files_in_directory(
+                self.args.directory, self.relevant_media_extensions
+            )
+            if not self.target_files:
+                print(
+                    f"No relevant anime files found in directory '{self.args.directory}'."
+                )
+                return False
+        return True
 
     def handle(self) -> None:
         """
